@@ -13,5 +13,8 @@
 
 
 <h1>DEMO</h1><br />
+<p>Openweather information</p>
+<img src=https://github.com/hkbtotw/raspi-chatbot/blob/master/ScreenCapture_Weather.JPG alt="Demo UI" width="400"/>
 
-<img src=https://github.com/hkbtotw/raspi-chatbot/blob/master/ScreenCapture.JPG alt="Demo UI" width="800"/>
+<p>Twitter: Latest traffic / rain information  </p>
+<img src=https://github.com/hkbtotw/raspi-chatbot/blob/master/ScreenCapture_Twitter.JPG alt="Demo UI" width="400"/>
