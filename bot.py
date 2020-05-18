@@ -9,7 +9,7 @@ from argparse import ArgumentParser
 import numpy as np
 import json
 #####
-from TwitterInformation import GetTweets, GetLatLon, handle_location
+from TwitterInformation import GetTweets, GetLatLon, handle_location, flexmessage, GetWeatherInfo
 #####
 
 import firebase_admin
@@ -45,13 +45,13 @@ from linebot.models import (
 app = Flask(__name__)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_host=1, x_proto=1)
 
-cred = credentials.Certificate("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
+cred = credentials.Certificate("xxxxxxxxxxxxxxxxxxxxxxxx")
 firebase_admin.initialize_app(cred)
 db = firestore.client()
 
 # get channel_secret and channel_access_token from your environment variable
-channel_secret = 'xxxxxxxxxxxxxxxxxxxxx'   
-channel_access_token = 'xxxxxxxxxxxxxxxxxxxxxxx'   
+channel_secret = 'xxxxxxxxxxxxxxxxxxx'   
+channel_access_token = 'xxxxxxxxxxxxxxxxxxxxxxxxxx'
 
 
 if channel_secret is None or channel_access_token is None:
@@ -92,14 +92,14 @@ def callback():
 
     # handle webhook body
     try:
-        # Use the line below to get Registered user id
         #handler.handle(body, signature)
-
-        # User the lines below to enable chatbot
         decoded = json.loads(json_line)
+        #print(' dc : ',decoded)
         no_event = len(decoded['events'])
+
         for i in range(no_event):
             event = decoded['events'][i]
+            #print(event)
             event_handle(event)
         
     except LineBotApiError as e:
@@ -115,6 +115,13 @@ def callback():
 
 def event_handle(event):
     print(event)
+    print('msg : ',event["type"])
+
+    if event["type"] == "follow":
+        userId = event['source']['userId']
+        print(' Add friend :  from ',userId)
+        WriteDataFireStore(event)
+
     try:
         userId = event['source']['userId']
     except:
@@ -136,7 +143,7 @@ def event_handle(event):
         replyObj = StickerSendMessage(package_id=str(1),sticker_id=str(sk_id))
         line_bot_api.reply_message(rtoken, replyObj)
         return ''
-
+       
     if msgType == "text":
         msg = str(event["message"]["text"])
         replyObj = TextSendMessage(text=msg)
@@ -146,20 +153,58 @@ def event_handle(event):
         lat=event["message"]["latitude"]
         lon=event["message"]["longitude"]
         print(' == >', lat,' :: ',lon)
+        print(' Accident Report Part ')
         try:
             df_pd=GetTweets()
             dfAcc_1=GetLatLon(df_pd)
-            txtresult=handle_location(lat,lon,dfAcc_1,5)
+            if(len(dfAcc_1)>0):
+                txtresult=handle_location(lat,lon,dfAcc_1,5)
+            else:
+                txtresult=' ไม่มีเหตุการณ์ '
         except:
-            txtresult=' No Incidents '
-        replyObj=TextSendMessage(text=txtresult)
-        line_bot_api.reply_message(rtoken,replyObj)
+            txtresult=' ไม่มีเหตุการณ์ '
+        print(' Weather Part ')
+        try:
+            name, todayStr, status, temp, iconStr, diffStr, rainFlag=GetWeatherInfo(lat,lon)
+            replyObj= handle_text(name, todayStr, status,temp,iconStr,diffStr,rainFlag)
+            line_bot_api.reply_message(rtoken, replyObj)
+        except:
+            txtresult=' ERROR - CHECK CODE '
+            replyObj=TextSendMessage(text=txtresult)
+            line_bot_api.reply_message(rtoken,replyObj)
+
+        line_bot_api.push_message(
+                    event["source"]["userId"], TextSendMessage(text=txtresult)
+                ) 
     else:
         sk_id = np.random.randint(1,17)
         replyObj = StickerSendMessage(package_id=str(1),sticker_id=str(sk_id))
         line_bot_api.reply_message(rtoken, replyObj)
     return ''
 
+def WriteDataFireStore(event):
+    print(event)
+    text = event["source"]["userId"]
+    #text = 'Befriended'
+    output=event["source"]["userId"]
+    print(' uid : ',output)
+    output1=u'ขอบคุณที่เป็นเพื่อนกันครับ'
+    data_ref=db.collection(u'AgentID').document(text)
+    data_ref.set({
+    u'UserID':output
+    }, merge=True)
+    line_bot_api.push_message(
+            event["source"]["userId"], [
+                TextSendMessage(text=output1),
+            ]
+        )
+
+def handle_text(name, todayStr, status,temp,icon,diffStr,rainFlag):
+    flex=flexmessage(name, todayStr, status,temp,icon,diffStr,rainFlag)
+    flex=json.loads(flex)
+    print(flex)
+    replyObj=FlexSendMessage(alt_text=" Rain forecast ", contents=flex)
+    return replyObj
 
 @handler.add(MessageEvent, message=TextMessage)
 def handle_text_message(event):
