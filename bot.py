@@ -9,7 +9,7 @@ from argparse import ArgumentParser
 import numpy as np
 import json
 #####
-from TwitterInformation import GetTweets, GetLatLon, handle_location, flexmessage, GetWeatherInfo
+from TwitterInformation import GetTweets, GetLatLon, handle_location, flexmessage, GetWeatherInfo, GetForecast
 #####
 
 import firebase_admin
@@ -45,13 +45,14 @@ from linebot.models import (
 app = Flask(__name__)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_host=1, x_proto=1)
 
-cred = credentials.Certificate("xxxxxxxxxxxxxxxxxxxxxxxx")
+cred = credentials.Certificate("monthly-information-koxkns-firebase-adminsdk-4fwo0-5c4149159b.json")
 firebase_admin.initialize_app(cred)
 db = firestore.client()
 
 # get channel_secret and channel_access_token from your environment variable
-channel_secret = 'xxxxxxxxxxxxxxxxxxx'   
-channel_access_token = 'xxxxxxxxxxxxxxxxxxxxxxxxxx'
+channel_secret = 'xxxxxxxxxxxxxxxxxxxxxxxxx'   #  @ Line
+channel_access_token = 'jxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'    #  @ Line
+
 
 
 if channel_secret is None or channel_access_token is None:
@@ -166,12 +167,14 @@ def event_handle(event):
         print(' Weather Part ')
         try:
             name, todayStr, status, temp, iconStr, diffStr, rainFlag=GetWeatherInfo(lat,lon)
-            replyObj= handle_text(name, todayStr, status,temp,iconStr,diffStr,rainFlag)
+            flagNumber, flagDesc,flagTime= GetForecast(lat,lon)
+            replyObj= handle_text(name, todayStr, status,temp,iconStr,flagTime,flagNumber, flagDesc)
             line_bot_api.reply_message(rtoken, replyObj)
         except:
-            txtresult=' ERROR - CHECK CODE '
-            replyObj=TextSendMessage(text=txtresult)
+            txtresult1=' ERROR - CHECK CODE '
+            replyObj=TextSendMessage(text=txtresult1)
             line_bot_api.reply_message(rtoken,replyObj)
+       
 
         line_bot_api.push_message(
                     event["source"]["userId"], TextSendMessage(text=txtresult)
@@ -199,8 +202,8 @@ def WriteDataFireStore(event):
             ]
         )
 
-def handle_text(name, todayStr, status,temp,icon,diffStr,rainFlag):
-    flex=flexmessage(name, todayStr, status,temp,icon,diffStr,rainFlag)
+def handle_text(name, todayStr, status,temp,icon,diffStr,rainFlag, flagDesc):
+    flex=flexmessage(name, todayStr, status,temp,icon,diffStr,rainFlag, flagDesc)
     flex=json.loads(flex)
     print(flex)
     replyObj=FlexSendMessage(alt_text=" Rain forecast ", contents=flex)

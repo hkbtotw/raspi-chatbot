@@ -10,6 +10,7 @@ import geopy.distance as ps
 import warnings
 import pyowm
 import json
+import requests
 warnings.filterwarnings('ignore')
 
 
@@ -17,7 +18,6 @@ def GetTweets():
     pd.set_option('display.max_colwidth', 0)
 
     nest_asyncio.apply()
-    #asyncio.set_event_loop(asyncio.new_event_loop())
 
     todayUTC=datetime.today()
 
@@ -59,7 +59,7 @@ def GetTweets():
     return df_pd
 
 def GetLatLon(df_pd):
-    myAPI='AIzaSyCYA0c5qppFhpcGeWK-e1QIT6EBS3LoMx4'
+    myAPI='xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
     gmaps = GoogleMaps(myAPI)  # my account API, replace with yours
 
     def LatLon_1(dfIn, colName):
@@ -125,7 +125,19 @@ def handle_location(lat,lon,inDf, topK):
     return resultTxt[0:-2]
 
 # Flexmessage in Json form built from  https://developers.line.biz/flex-simulator/
-def flexmessage(name, todayStr, status,temp,icon,diffStr,rainFlag):
+def flexmessage(name, todayStr, status,temp,icon,diffStr,rainFlag, flagDesc):
+          
+    #if(rainFlag==True):
+    if(rainFlag==5 or rainFlag==6 or rainFlag==7 or rainFlag==8):
+        textRain=flagDesc
+        colorRain="#FF0000"
+        bgColor="#FFA07A"
+        iconRain="https://openweathermap.org/img/w/09d.png"
+    else:
+        textRain=flagDesc
+        colorRain="#228B22"
+        bgColor="#98FB98"
+        iconRain="https://openweathermap.org/img/w/03d.png"
 
     flex= '''
         {
@@ -191,13 +203,18 @@ def flexmessage(name, todayStr, status,temp,icon,diffStr,rainFlag):
                         "type": "text",
                         "text": "Rain Forecast",
                         "wrap": true,
-                        "size": "lg",
+                        "size": "xs",
                         "color": "#a57f23",
                         "gravity": "center"
                     },
                     {
                         "type": "text",
-                        "text": "%s"
+                        "text": "%s",
+                        "wrap": true,
+                        "size": "xs",
+                        "color": "#a57f23",
+                        "gravity": "center",
+                        "align":"end"
                     }
                     ],
                     "margin": "xxl"
@@ -209,9 +226,16 @@ def flexmessage(name, todayStr, status,temp,icon,diffStr,rainFlag):
                     {
                         "type": "text",
                         "text": "%s",
-                        "color": "#a57f23",
-                        "size": "3xl",
+                        "color": "%s",
+                        "size": "xl",
                         "align": "center"
+                    },
+                    {
+                        "type": "icon",
+                        "url": "%s",
+                        "size": "xl",
+                        "position": "relative",
+                        "margin": "none"
                     }
                     ]
                 }
@@ -228,17 +252,17 @@ def flexmessage(name, todayStr, status,temp,icon,diffStr,rainFlag):
                 },
             "styles": {
                 "body": {
-                "backgroundColor": "#fdd74b"
+                "backgroundColor": "%s"
                 }
             }
-            }'''%(name, todayStr, status,str(temp),icon,str(diffStr), str(rainFlag))
+            }'''%(name, todayStr, status,str(temp),icon,str(diffStr), textRain,colorRain, iconRain,bgColor)
     return flex
     
 
 
 
 def GetWeatherInfo(lat, lon):
-    openWeatherKey="xxxxxxxxxxxxxxxxxxxxxxxxxx"
+    openWeatherKey="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 
     todayLocal=datetime.today()
 
@@ -250,8 +274,8 @@ def GetWeatherInfo(lat, lon):
     todayUTC=todayLocal.astimezone(utc)
 
     #print(today, ' ==== ',todayUTC)
-    diff=today+timedelta(hours=2, minutes=0)
-    diffUTC=todayUTC+timedelta(hours=2, minutes=0)
+    diff=today+timedelta(hours=3, minutes=0)
+    diffUTC=todayUTC+timedelta(hours=3, minutes=0)
 
     todayStr=today.strftime("%Y-%m-%d %H:%M:%S")
     diffStr=diff.strftime("%Y-%m-%d %H:%M:%S")
@@ -270,19 +294,114 @@ def GetWeatherInfo(lat, lon):
     icon=w.get_weather_icon_url() 
     l = obs.get_location()
     name=l.get_name()
-    #print(name, ' :: ',wind,' :: ',humid,' :: ',temp,' :: ',rain,' :: ',status,' :: ',icon)  
+    print(name, ' :: ',wind,' :: ',humid,' :: ',temp,' :: ',rain,' :: ',status,' :: ',icon)  
+    logDateStr='None'
+    try:
+        fc = owm.three_hours_forecast(name)
+        #f = fc.get_forecast()
 
-    fc = owm.three_hours_forecast(name)
-    f = fc.get_forecast()
-    rainFlag=fc.will_be_rainy_at(diffUTC)
+        logDate=fc.when_starts('date')
+        logDateStr=logDate.astimezone(to_zone).strftime("%Y-%m-%d %H:%M:%S")
+        rainFlag=fc.will_have_rain()
+        
+        #rainFlag=fc.will_be_rainy_at(diffUTC)
+    except:
+        rainFlag="No prediction"
 
     #print(' AT ---- ', diff,' ==> ',rainFlag)
+    print(' AT ---- ', logDateStr,' ==> ',rainFlag)
     
     iconStr='https'+icon[4:]
     iconStr
+    print(name, str(todayStr), status,str(temp["temp"]),iconStr, logDateStr, str(rainFlag) )
+    return name, todayStr, status, temp["temp"],iconStr, logDateStr, rainFlag
 
-    print(name, str(todayStr), status,str(temp["temp"]),iconStr, str(diffStr), str(rainFlag) )
-    return name, todayStr, status, temp["temp"],iconStr, diffStr, rainFlag
+
+
+
+def GetForecast(lat,lon):
+    condDict={
+        1:'ท้องฟ้าแจ่มใส (Clear)',
+        2 : 'มีเมฆบางส่วน (Partly cloudy)',
+        3 : 'เมฆเป็นส่วนมาก (Cloudy)',
+        4 : 'มีเมฆมาก (Overcast)',
+        5 : 'ฝนตกเล็กน้อย (Light rain)',
+        6 : 'ฝนปานกลาง (Moderate rain)',
+        7 : 'ฝนตกหนัก (Heavy rain)',
+        8 : 'ฝนฟ้าคะนอง (Thunderstorm)',
+        9 : 'อากาศหนาวจัด (Very cold)',
+        10 : 'อากาศหนาว (Cold)',
+        11 : 'อากาศเย็น (Cool)',
+        12 : 'อากาศร้อนจัด (Very hot)'
+        }
+
+    mode='tc,cond'
+    todayLocal=datetime.today()
+
+    # dd/mm/YY H:M:S
+    to_zone = pytz.timezone('Asia/Bangkok')
+    utc = pytz.timezone('UTC')
+
+    today=todayLocal.astimezone(to_zone)
+    todayUTC=todayLocal.astimezone(utc)
+
+    diff=today+timedelta(hours=3, minutes=0)
+    diffUTC=todayUTC+timedelta(hours=3, minutes=0)
+
+    todayStr=today.strftime("%Y-%m-%d")
+    hourStr=today.strftime("%H")
+    minStr=today.strftime("%M")
+
+    date=todayStr
+
+    #print(' --> ',todayStr,' ** ',hourStr)
+    if(int(minStr)<=30):
+        durationStr='2'
+    else:
+        durationStr='3'
+    #durationStr='2'
+
+    # Use URL from opendata website
+    url = 'https://data.tmd.go.th/nwpapi/v1/forecast/location/hourly/at'  
+
+    stringSearch='?lat=%s&lon=%s&fields=%s&date=%s&hour=%s&duration=%s'%(lat,lon,mode,date,hourStr,durationStr)
+
+    url=url+stringSearch
+    print(url)
+
+    # Use your API key
+    headers = {'accept': 'application/json','authorization': 'Bearer '+'xxxxxxxxxxxxxxxxxxxxxxxxxxxx'}
+
+    response = requests.get(url, headers=headers)
+
+    result=response.json()
+    #print(result)
+    fc=result['WeatherForecasts'][0]
+    #print(fc)
+
+    #data=pd.DataFrame.from_dict(result['WeatherForecasts'])
+    forecast=pd.DataFrame.from_dict(fc['forecasts'])
+    
+    
+    def GetHour(dt):
+        return dt.strftime("%H")
+    
+    forecast['datetime']=pd.to_datetime(forecast['time'], format="%Y-%m-%dT%H:%M:%S%z")
+    forecast['hour']=forecast.apply(lambda x: GetHour(x['datetime']),axis=1)
+    #print(forecast)
+    
+    current=forecast.iloc[0]
+    nexthour=forecast.iloc[len(forecast)-1]
+
+
+    currentInformation=current['data']
+    forecastInformation=nexthour['data']
+    forecastTime=nexthour['datetime'].strftime("%Y-%m-%d %H:%M:%S")
+
+    forecastCond=condDict[forecastInformation['cond']]
+
+    
+    return forecastInformation['cond'], forecastCond,forecastTime
 
 
 
