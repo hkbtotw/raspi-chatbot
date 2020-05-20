@@ -126,18 +126,33 @@ def handle_location(lat,lon,inDf, topK):
 
 # Flexmessage in Json form built from  https://developers.line.biz/flex-simulator/
 def flexmessage(name, todayStr, status,temp,icon,diffStr,rainFlag, flagDesc):
-          
+
+    iconDict={
+        1:"https://openweathermap.org/img/w/01d.png",
+        2:"https://openweathermap.org/img/w/02d.png",
+        3:"https://openweathermap.org/img/w/03d.png",
+        4:"https://openweathermap.org/img/w/04d.png",
+        5:"https://openweathermap.org/img/w/09d.png",
+        6:"https://openweathermap.org/img/w/10d.png",
+        7:"https://openweathermap.org/img/w/10d.png",
+        8:"https://openweathermap.org/img/w/11d.png",
+        9:"https://openweathermap.org/img/w/13d.png",
+        10:"https://openweathermap.org/img/w/13d.png",
+        11:"https://openweathermap.org/img/w/13d.png",
+        12:"https://openweathermap.org/img/w/01d.png"
+    }
+
     #if(rainFlag==True):
     if(rainFlag==5 or rainFlag==6 or rainFlag==7 or rainFlag==8):
         textRain=flagDesc
         colorRain="#FF0000"
         bgColor="#FFA07A"
-        iconRain="https://openweathermap.org/img/w/09d.png"
+        iconRain=iconDict[rainFlag]
     else:
         textRain=flagDesc
         colorRain="#228B22"
         bgColor="#98FB98"
-        iconRain="https://openweathermap.org/img/w/03d.png"
+        iconRain=iconDict[rainFlag]
 
     flex= '''
         {
@@ -227,7 +242,7 @@ def flexmessage(name, todayStr, status,temp,icon,diffStr,rainFlag, flagDesc):
                         "type": "text",
                         "text": "%s",
                         "color": "%s",
-                        "size": "xl",
+                        "size": "xs",
                         "align": "center"
                     },
                     {
